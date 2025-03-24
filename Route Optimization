@@ -1,0 +1,110 @@
+from collections import defaultdict, deque
+import heapq
+from typing import Dict, List, Tuple, Optional
+
+class Istasyon:
+    def __init__(self, idx: str, ad: str, hat: str):
+        self.idx = idx
+        self.ad = ad
+        self.hat = hat
+        self.komsular: List[Tuple['Istasyon', int]] = []
+
+    def komsu_ekle(self, istasyon: 'Istasyon', sure: int):
+        self.komsular.append((istasyon, sure))
+
+   
+    def __lt__(self, other: 'Istasyon') -> bool:
+        return self.idx < other.idx
+
+class MetroAgi:
+    def __init__(self):
+        self.istasyonlar: Dict[str, Istasyon] = {}
+        self.hatlar: Dict[str, List[Istasyon]] = defaultdict(list)
+
+    def istasyon_ekle(self, idx: str, ad: str, hat: str) -> None:
+        if idx not in self.istasyonlar:
+            istasyon = Istasyon(idx, ad, hat)
+            self.istasyonlar[idx] = istasyon
+            self.hatlar[hat].append(istasyon)
+
+    def baglanti_ekle(self, istasyon1_id: str, istasyon2_id: str, sure: int) -> None:
+        istasyon1 = self.istasyonlar[istasyon1_id]
+        istasyon2 = self.istasyonlar[istasyon2_id]
+        istasyon1.komsu_ekle(istasyon2, sure)
+        istasyon2.komsu_ekle(istasyon1, sure)
+    
+    def en_az_aktarma_bul(self, baslangic_id: str, hedef_id: str) -> Optional[List[Istasyon]]:
+        if baslangic_id not in self.istasyonlar or hedef_id not in self.istasyonlar:
+            return None
+        
+        kuyruk = deque([(self.istasyonlar[baslangic_id], [self.istasyonlar[baslangic_id]])])
+        ziyaret_edildi = set()
+        
+        while kuyruk:
+            mevcut, yol = kuyruk.popleft()
+            
+            if mevcut.idx == hedef_id:
+                return yol
+            
+            if mevcut not in ziyaret_edildi:
+                ziyaret_edildi.add(mevcut)
+                for komsu, _ in mevcut.komsular:
+                    if komsu not in ziyaret_edildi:
+                        kuyruk.append((komsu, yol + [komsu]))
+        
+        return None
+
+    def en_hizli_rota_bul(self, baslangic_id: str, hedef_id: str) -> Optional[Tuple[List[Istasyon], int]]:
+        if baslangic_id not in self.istasyonlar or hedef_id not in self.istasyonlar:
+            return None
+
+        oncelik_kuyrugu = [(0, self.istasyonlar[baslangic_id], [self.istasyonlar[baslangic_id]])]
+        ziyaret_edildi = {}
+        
+        while oncelik_kuyrugu:
+            sure, mevcut, yol = heapq.heappop(oncelik_kuyrugu)
+            
+            if mevcut.idx == hedef_id:
+                return yol, sure
+            
+            if mevcut not in ziyaret_edildi or ziyaret_edildi[mevcut] > sure:
+                ziyaret_edildi[mevcut] = sure
+                for komsu, gecikme in mevcut.komsular:
+                    heapq.heappush(oncelik_kuyrugu, (sure + gecikme, komsu, yol + [komsu]))
+        
+        return None
+
+def senaryo_yazdir(baslangic, hedef):
+    en_az_aktarma = metro.en_az_aktarma_bul(baslangic, hedef)
+    en_hizli_rota, sure = metro.en_hizli_rota_bul(baslangic, hedef)
+    
+    print(f"{metro.istasyonlar[baslangic].ad}'den {metro.istasyonlar[hedef].ad}'ye:")
+    print("En az aktarma rotası:", " -> ".join([istasyon.ad for istasyon in en_az_aktarma]))
+    print(f"En hızlı rota ({sure} dakika):", " -> ".join([istasyon.ad for istasyon in en_hizli_rota]))
+    print()
+
+metro = MetroAgi()
+metro.istasyon_ekle("A", "AŞTİ", "Kırmızı Hat")
+metro.istasyon_ekle("B", "Kızılay", "Kırmızı Hat")
+metro.istasyon_ekle("C", "Ulus", "Kırmızı Hat")
+metro.istasyon_ekle("D", "Demetevler", "Kırmızı Hat")
+metro.istasyon_ekle("E", "OSB", "Kırmızı Hat")
+metro.istasyon_ekle("F", "Batıkent", "Mavi Hat")
+metro.istasyon_ekle("G", "Gar", "Mavi Hat")
+metro.istasyon_ekle("H", "Keçiören", "Mavi Hat")
+metro.istasyon_ekle("I", "Sıhhiye", "Yeşil Hat")
+
+metro.baglanti_ekle("A", "B", 3)
+metro.baglanti_ekle("B", "C", 4)
+metro.baglanti_ekle("C", "D", 6)
+metro.baglanti_ekle("D", "E", 8)
+metro.baglanti_ekle("F", "D", 5)
+metro.baglanti_ekle("F", "G", 7)
+metro.baglanti_ekle("G", "H", 9)
+metro.baglanti_ekle("B", "I", 2)
+metro.baglanti_ekle("I", "G", 4)
+
+print("=== Test Senaryoları ===")
+senaryo_yazdir("A", "E")
+senaryo_yazdir("F", "H")
+senaryo_yazdir("H", "A")
